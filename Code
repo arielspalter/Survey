@@ -1,0 +1,112 @@
+library(tidyverse)
+library(ggsci) 
+library(gmodels)
+
+survey <- read.csv("file:///C:/Users/Ariel/Desktop/Ariel Studies/CIND 136/casino/casino_survey_results20130325.csv",na.strings=c(""," ","NA"))
+str(survey)
+
+Negative_Words <- scan("file:///C:/Users/Ariel/Desktop/Ariel Studies/Negative_Words.txt", what = "character", comment.char = ";")
+Positive_Words <- scan("file:///C:/Users/Ariel/Desktop/Ariel Studies/Positive_Words.txt", what = "character", comment.char = ";")
+str(Positive_Words)
+
+## Open-ended questions - sentiment analysis
+
+# Matching the answers against positive index
+
+#Q1
+sum(!is.na(match(survey$Q1_B1, Positive_Words)))
+table(match(survey$Q1_B1, Positive_Words)) # Index appearance  of the terms and the frequency of each one.
+table(Positive_Words[c(595,635,778)]) # Literal appearance  of the terms (The terms themselves) and the frequency of each one.
+#Q2
+sum(!is.na(match(survey$Q1_B2, Positive_Words)))
+table(match(survey$Q1_B2, Positive_Words))
+table(Positive_Words[c(146,352,353,356,778,1343)])
+#Q3
+sum(!is.na(match(survey$Q1_B3, Positive_Words)))
+table(match(survey$Q1_B3, Positive_Words))
+table(Positive_Words[c(352, 766, 778)])
+
+# Matching the answers against negative index
+#Q1
+sum(!is.na(match(survey$Q1_B1, Negative_Words)))
+table(match(survey$Q1_B1, Negative_Words))
+table(Negative_Words[c(665, 709 ,754, 1501, 1882, 2156, 3322, 4187, 4459, 4490, 4528, 4601 )])
+#Q2
+sum(!is.na(match(survey$Q1_B2, Negative_Words)))
+table(match(survey$Q1_B2, Negative_Words))
+table(Negative_Words[c(665, 709, 754, 1447, 1882, 2156, 2311, 3041, 3342, 3829, 4153, 4187, 4356, 4490, 4528)])
+#Q3
+sum(!is.na(match(survey$Q1_B3, Negative_Words)))
+table(match(survey$Q1_B3, Negative_Words))
+table(Negative_Words[c(665, 709, 754, 1559, 2156, 3041, 3342, 4103, 4187, 4309, 4432, 4490)])
+
+#
+Pos_1 <- data.frame(Words = Positive_Words[c(595,635,778)], Number_Of_Occurrence = table(match(survey$Q1_B1, Positive_Words)))
+Pos_2 <- data.frame(Words = Positive_Words[c(146,352,353,356,778,1343)], Number_Of_Occurrence = table(match(survey$Q1_B2, Positive_Words)))
+Pos_3 <- data.frame(Words = Positive_Words[c(352, 766, 778)], Number_Of_Occurrence = table(match(survey$Q1_B3, Positive_Words)))
+Pos <- rbind(Pos_1, Pos_2, Pos_3)
+
+All_Positive <- Pos %>%
+  dplyr::group_by(Words) %>%
+  summarise(Freq = sum(Number_Of_Occurrence.Freq))
+  
+
+Neg_1 <- data.frame(Words = Negative_Words[c(665, 709 ,754, 1501, 1882, 2156, 3322, 4187, 4459, 4490, 4528, 4601 )], Number_Of_Occurrence = table(match(survey$Q1_B1, Negative_Words)))
+Neg_2 <- data.frame(Words = Negative_Words[c(665, 709, 754, 1447, 1882, 2156, 2311, 3041, 3342, 3829, 4153, 4187, 4356, 4490, 4528)], Number_Of_Occurrence = table(match(survey$Q1_B2, Negative_Words)))
+Neg_3 <- data.frame(Words = Negative_Words[c(665, 709, 754, 1559, 2156, 3041, 3342, 4103, 4187, 4309, 4432, 4490)], Number_Of_Occurrence = table(match(survey$Q1_B3, Negative_Words)))
+Neg <- rbind(Neg_1, Neg_2, Neg_3)
+
+All_Negative <- Neg %>%
+  dplyr::group_by(Words) %>%
+  summarise(Freq = sum(Number_Of_Occurrence.Freq))
+
+# quantitative summary of the sentiment.
+sum(All_Negative$Freq) - sum(All_Positive$Freq)
+# The top negative terms in the survey's answer:
+top_n(All_Negative,5,Freq)
+arrange(All_Negative, desc(Freq))
+
+# The top positive terms in the survey's answer:
+top_n(All_Positive,5,Freq)
+arrange(All_Positive, desc(Freq))
+
+# Plotting the frequency of the negative terms
+ggplot(data = All_Negative, aes(x=Words, y=Freq))+geom_bar(stat = 'identity')+coord_flip()+ggthemes::theme_fivethirtyeight()
+# Plotting the frequency of the negative terms
+ggplot(data = All_Positive, aes(x=Words, y=Freq))+geom_bar(stat = 'identity')+coord_flip()+ggthemes::theme_fivethirtyeight()
+
+## Scaled Questions analysis:
+# statistics of a few scaled questions that reflect the general thoughts about the topic:
+
+# 'How does a new casino in Toronto fit your image of the City of Toronto?' grouped by gender.
+table(survey$Q2_A)
+ggplot(data = survey, aes(Q2_A, fill=Gender))+geom_bar(stat = 'count', position = 'dodge')
+
+#'Would revenue generated for the City of Toronto from the casino influence your opinions?'
+table(survey$Q4_A)
+ggplot(data = survey, aes(Q4_A, fill=Gender))+geom_bar(stat = 'count', position = 'dodge')
+
+
+# 'Please indicate on the scale below how you feel about having a new casino in Toronto:'
+table(survey$Q1_A)
+ggplot(data = survey, aes(Q1_A, fill=Gender))+geom_bar(stat = 'count', position = 'dodge')
+survey$Q1_A_Num <- ifelse(survey$Q1_A=="Strongly in Favour",1,
+                   ifelse(survey$Q1_A=="Somewhat in Favour",2,
+                   ifelse(survey$Q1_A=="Neutral or Mixed Feelings",3,
+                   ifelse(survey$Q1_A=="Somewhat Opposed",4,
+                   ifelse(survey$Q1_A=="Strongly Opposed",5,NA)))))
+mean(survey$Q1_A_Num, na.rm = T) # Average of 3.90 on the scale of 1-5.
+
+# Calculating proportion table for that question grouped by age groups
+Q1_A_Table <- table(survey$Age, survey$Q1_A)
+Prop_Q1_A_Table <- prop.table(Q1_A_Table)
+Prop_Q1_A_Table <- round(addmargins(Prop_Q1_A_Table),4)*100
+print(Prop_Q1_A_Table)
+
+# Ploting the density curves of the query - mean of the question's scale per age group
+ggplot(data = survey, aes(x=Q1_A_Num, color=Age))+geom_density()
+
+# Checking statistical significance of the same query using ANOVA model
+Anova_Age <- aov(Q1_A_Num~Age, data = survey)
+anova(Anova_Age)
+# All the 3 ways of inspection reveal that the 15-24 group is more in favour of casino in Toronto.
